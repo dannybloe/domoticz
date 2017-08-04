@@ -901,7 +901,9 @@ return {
 ```
 No requires or dofiles needed.  Simple as that.
 
-
+## Requiring your own modules
+If you don't want to use the helpers support but want to require your own modules. Place them either in `/path/to/domoticz/scripts/dzVents/modules` or `/path/to/domoticz/scripts/dzVents/scripts/modules` as these folders are already added to the Lua package path. You can just require those modules: `local myModule = require('myModule')`
+s
 # Persistent data
 
 In many situations you need to store some device state or other information in your scripts for later use. Like knowing what the state was of a device the previous time the script was executed or what the temperature in a room was 10 minutes ago. Without dzVents you had to resort to user variables. These are global variables that you create in the Domoticz GUI and that you can access in your scripts like: domoticz.variables('previousTemperature').
