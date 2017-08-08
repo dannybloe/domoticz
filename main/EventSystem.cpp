@@ -137,6 +137,9 @@ CEventSystem::~CEventSystem(void)
 
 void CEventSystem::StartEventSystem()
 {
+	// Get EventSystem start time for comparison in scripts
+	getclock(&m_EventSystemStartTime);
+
 	m_printprefix = "LUA";
 	StopEventSystem();
 	if (!m_bEnabled)
@@ -2905,7 +2908,7 @@ void CEventSystem::ExportDomoticzDataToLua(lua_State *lua_state, uint64_t device
 	}
 	scenesgroupsMutexLock.unlock();
 
-	char *vtype;
+	std::string vtype;
 
 	// Now do the user variables.
 	boost::shared_lock<boost::shared_mutex> uservariablesMutexLock(m_uservariablesMutex);
@@ -2949,13 +2952,13 @@ void CEventSystem::ExportDomoticzDataToLua(lua_State *lua_state, uint64_t device
 		{
 			//Integer
 			lua_pushnumber(lua_state, atoi(uvitem.variableValue.c_str()));
-			vtype = (char*)"integer";
+			vtype = "integer";
 		}
 		else if (uvitem.variableType == 1)
 		{
 			//Float
 			lua_pushnumber(lua_state, atof(uvitem.variableValue.c_str()));
-			vtype = (char*)"float";
+			vtype = "float";
 		}
 		else
 		{
@@ -2963,19 +2966,19 @@ void CEventSystem::ExportDomoticzDataToLua(lua_State *lua_state, uint64_t device
 			lua_pushstring(lua_state, uvitem.variableValue.c_str());
 			if (uvitem.variableType == 2)
 			{
-				vtype = (char*)"string";
+				vtype = "string";
 			}
 			else if (uvitem.variableType == 3)
 			{
-				vtype = (char*)"date";
+				vtype = "date";
 			}
 			else if (uvitem.variableType == 4)
 			{
-				vtype = (char*)"time";
+				vtype = "time";
 			}
 			else
 			{
-				vtype = (char*)"unknown";
+				vtype = "unknown";
 			}
 		}
 		lua_rawset(lua_state, -3);
@@ -2983,7 +2986,7 @@ void CEventSystem::ExportDomoticzDataToLua(lua_State *lua_state, uint64_t device
 		lua_settable(lua_state, -3); // data table
 
 		lua_pushstring(lua_state, "variableType");
-		lua_pushstring(lua_state, vtype);
+		lua_pushstring(lua_state, vtype.c_str());
 		lua_rawset(lua_state, -3);
 
 		lua_settable(lua_state, -3); // end entry
@@ -3573,6 +3576,14 @@ void CEventSystem::EvaluateLua(const std::string &reason, const std::string &fil
 	{
 		if (filename == m_dzv_Dir + "dzVents.lua")
 		{
+			struct timeval timeDiff, currentTime;
+			getclock(&currentTime);
+			if (timeval_subtract(&timeDiff, &currentTime, &m_EventSystemStartTime))
+			{
+				timeDiff.tv_sec = 0;
+				timeDiff.tv_usec = 0;
+			}
+			float elapsedTime = ((timeDiff.tv_usec / 1000000.0f) + timeDiff.tv_sec);
 			std::stringstream lua_DirT;
 
 			lua_DirT << szUserDataFolder <<
@@ -3617,6 +3628,9 @@ void CEventSystem::EvaluateLua(const std::string &reason, const std::string &fil
 			lua_pushstring(lua_state, "domoticz_listening_port");
 		//	lua_pushstring(lua_state, "8080");
 			lua_pushstring(lua_state, m_webservers.our_listener_port.c_str());
+			lua_rawset(lua_state, -3);
+			lua_pushstring(lua_state, "elapsedTime");
+			lua_pushnumber(lua_state, (lua_Number)elapsedTime);
 			lua_rawset(lua_state, -3);
 		}
 	}
@@ -4691,8 +4705,8 @@ namespace http {
 							std::string actions = array[index].get("actions", "").asString();
 
 							if (
-								(actions.find("SendNotification") != std::string::npos) || 
-								(actions.find("SendEmail") != std::string::npos) || 
+								(actions.find("SendNotification") != std::string::npos) ||
+								(actions.find("SendEmail") != std::string::npos) ||
 								(actions.find("SendSMS") != std::string::npos) ||
 								(actions.find("TriggerIFTTT") != std::string::npos)
 								)

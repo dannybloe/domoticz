@@ -118,6 +118,7 @@ public:
 	bool PythonScheduleEvent(std::string ID, const std::string &Action, const std::string &eventName);
 
 private:
+	struct timeval m_EventSystemStartTime;
 	struct _tEventQueue
 	{
 		std::string reason;
