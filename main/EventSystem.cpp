@@ -2426,7 +2426,7 @@ bool CEventSystem::parseBlocklyActions(const std::string &Actions, const std::st
 			{
 				//Invalid
 				_log.Log(LOG_ERROR, "EventSystem: SendEmail, not enough parameters!");
-				continue;;
+				continue;
 			}
 			subject = ParseBlocklyString(aParam[0]);
 			body = ParseBlocklyString(aParam[1]);
@@ -2442,10 +2442,32 @@ bool CEventSystem::parseBlocklyActions(const std::string &Actions, const std::st
 			{
 				//Invalid
 				_log.Log(LOG_ERROR, "EventSystem: SendSMS, not enough parameters!");
-				continue;;
+				continue;
 			}
 			doWhat = ParseBlocklyString(doWhat);
 			m_sql.AddTaskItem(_tTaskItem::SendSMS(1, doWhat));
+			actionsDone = true;
+			continue;
+		}
+		else if (deviceName.find("TriggerIFTTT") != std::string::npos)
+		{
+			std::vector<std::string> aParam;
+			StringSplit(doWhat, "#", aParam);
+			if ((aParam.empty()) || (aParam.size() > 4))
+			{
+				//Invalid
+				_log.Log(LOG_ERROR, "EventSystem: TriggerIFTTT, not enough parameters!");
+				continue;
+			}
+			std::string sID = ParseBlocklyString(aParam[0]);
+			std::string sValue1, sValue2, sValue3;
+			if (aParam.size() > 1)
+				sValue1 = ParseBlocklyString(aParam[1]);
+			if (aParam.size() > 2)
+				sValue2 = ParseBlocklyString(aParam[2]);
+			if (aParam.size() > 3)
+				sValue3 = ParseBlocklyString(aParam[3]);
+			m_sql.AddTaskItem(_tTaskItem::SendIFTTTTrigger(1, sID, sValue1, sValue2, sValue3));
 			actionsDone = true;
 			continue;
 		}
@@ -3855,6 +3877,28 @@ bool CEventSystem::processLuaCommand(lua_State *lua_state, const std::string &fi
 		m_sql.AddTaskItem(_tTaskItem::SendSMS(1, luaString));
 		scriptTrue = true;
 	}
+	else if (lCommand == "TriggerIFTTT")
+	{
+		std::string luaString = lua_tostring(lua_state, -1);
+		std::vector<std::string> aParam;
+		StringSplit(luaString, "#", aParam);
+		if ((aParam.empty()) || (aParam.size() > 4))
+		{
+			//Invalid
+			_log.Log(LOG_ERROR, "EventSystem: TriggerIFTTT, not enough parameters!");
+			return false;
+		}
+		std::string sID = ParseBlocklyString(aParam[0]);
+		std::string sValue1, sValue2, sValue3;
+		if (aParam.size() > 1)
+			sValue1 = ParseBlocklyString(aParam[1]);
+		if (aParam.size() > 2)
+			sValue2 = ParseBlocklyString(aParam[2]);
+		if (aParam.size() > 3)
+			sValue3 = ParseBlocklyString(aParam[3]);
+		m_sql.AddTaskItem(_tTaskItem::SendIFTTTTrigger(1, sID, sValue1, sValue2, sValue3));
+		scriptTrue = true;
+	}
 	else if (lCommand == "OpenURL")
 	{
 		std::string luaString = lua_tostring(lua_state, -1);
@@ -4720,7 +4764,12 @@ namespace http {
 							std::string conditions = array[index].get("conditions", "").asString();
 							std::string actions = array[index].get("actions", "").asString();
 
-							if ((actions.find("SendNotification") != std::string::npos) || (actions.find("SendEmail") != std::string::npos) || (actions.find("SendSMS") != std::string::npos))
+							if (
+								(actions.find("SendNotification") != std::string::npos) || 
+								(actions.find("SendEmail") != std::string::npos) || 
+								(actions.find("SendSMS") != std::string::npos) ||
+								(actions.find("TriggerIFTTT") != std::string::npos)
+								)
 							{
 								stdreplace(actions, "$", "#");
 							}
@@ -4969,7 +5018,12 @@ namespace http {
 								std::string conditions = array[index].get("conditions", "").asString();
 								std::string actions = array[index].get("actions", "").asString();
 
-								if ((actions.find("SendNotification") != std::string::npos) || (actions.find("SendEmail") != std::string::npos) || (actions.find("SendSMS") != std::string::npos))
+								if (
+									(actions.find("SendNotification") != std::string::npos) ||
+									(actions.find("SendEmail") != std::string::npos) ||
+									(actions.find("SendSMS") != std::string::npos) ||
+									(actions.find("TriggerIFTTT") != std::string::npos)
+									)
 								{
 									stdreplace(actions, "$", "#");
 								}

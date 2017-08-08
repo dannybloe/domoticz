@@ -266,6 +266,7 @@ main/EventSystem.cpp
 main/EventsPythonModule.cpp
 main/EventsPythonDevice.cpp
 main/Helper.cpp
+main/IFTTT.cpp
 main/localtime_r.cpp
 main/Logger.cpp
 main/LuaCommon.cpp
@@ -306,6 +307,7 @@ hardware/CurrentCostMeterTCP.cpp
 hardware/Daikin.cpp
 hardware/DarkSky.cpp
 hardware/DavisLoggerSerial.cpp
+hardware/DenkoviSmartdenIPIn.cpp
 hardware/DenkoviSmartdenLan.cpp
 hardware/DomoticzHardware.cpp
 hardware/DomoticzInternal.cpp
