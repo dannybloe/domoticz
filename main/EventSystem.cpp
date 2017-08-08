@@ -157,11 +157,18 @@ void CEventSystem::StartEventSystem()
 
 	m_thread = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&CEventSystem::Do_Work, this)));
 	m_eventqueuethread = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&CEventSystem::EventQueueThread, this)));
+
+	extern time_t m_StartTime;
+	struct tm ltime;
+	localtime_r(&m_StartTime, &ltime);
+	std::stringstream ssStartTime;
+	ssStartTime << (ltime.tm_year + 1900) << "-" << std::setw(2) << std::setfill('0') << (ltime.tm_mon + 1) << "-" << std::setw(2) << std::setfill('0') << ltime.tm_mday
+	<< " " << std::setw(2) << std::setfill('0') << ltime.tm_hour << ":" << std::setw(2) << std::setfill('0') << ltime.tm_min << ":" << std::setw(2) << std::setfill('0') << ltime.tm_sec;
+	m_szStartTime = ssStartTime.str();
 }
 
 void CEventSystem::StopEventSystem()
 {
-
 	if (m_eventqueuethread)
 	{
 		m_stoprequested = true;
@@ -170,10 +177,7 @@ void CEventSystem::StopEventSystem()
 	}
 
 	if (m_thread)
-	{
-		m_stoprequested = true;
 		m_thread->join();
-	}
 
 #ifdef ENABLE_PYTHON
     Plugins::PythonEventsStop();
@@ -288,10 +292,10 @@ void CEventSystem::Do_Work()
 {
 #ifdef WIN32
 	m_lua_Dir = szUserDataFolder + "scripts\\lua\\";
-	m_dzv_Dir = szUserDataFolder + "scripts\\dzVents\\runtime\\";
+	m_dzv_Dir = szUserDataFolder + "dzVents\\runtime\\";
 #else
 	m_lua_Dir = szUserDataFolder + "scripts/lua/";
-	m_dzv_Dir = szUserDataFolder + "scripts/dzVents/runtime/";
+	m_dzv_Dir = szUserDataFolder + "dzVents/runtime/";
 #endif
 
 #ifdef ENABLE_PYTHON
@@ -1291,6 +1295,7 @@ void CEventSystem::UpdateScenesGroups(const uint64_t ulDevID, const int nValue, 
 			replaceitem.scenesgroupValue = "Mixed";
 		replaceitem.lastUpdate = lastUpdate;
 		itt->second = replaceitem;
+		ProcessDevice(0, ulDevID, 0, 255, 0, 255, 255, nValue, "", replaceitem.scenesgroupName, 0);
 	}
 }
 
@@ -1432,9 +1437,29 @@ void CEventSystem::ProcessDevice(const int HardwareID, const uint64_t ulDevID, c
 		item.trigger = NULL;
 		m_eventqueue.push(item);
 	}
+	else if (devType == 255) // use dummy value for scenes/groups
+	{
+		_tEventQueue item;
+		if (nValue == 0)
+			item.nValueWording = "Off";
+		else if (nValue == 1)
+			item.nValueWording = "On";
+		else
+			item.nValueWording = "Mixed";
+
+		item.reason = "device";
+		item.DeviceID = 0;
+		item.devname = devname;
+		item.nValue = nValue;
+		item.sValue = sValue;
+		item.varId = 0;
+		item.trigger = NULL;
+		m_eventqueue.push(item);
+	}
 	else
 	{
 		_log.Log(LOG_ERROR, "EventSystem: Could not determine switch type for event device %s", devname.c_str());
+
 	}
 }
 
@@ -2638,6 +2663,7 @@ void CEventSystem::EvaluatePython(const std::string &reason, const std::string &
 	//_log.Log(LOG_NORM, "EventSystem: Already scheduled this event, skipping");
 	// _log.Log(LOG_STATUS, "EventSystem: script %s trigger, file: %s, script: %s, deviceName: %s" , reason.c_str(), filename.c_str(), PyString.c_str(), devname.c_str());
 
+	boost::shared_lock<boost::shared_mutex> devicestatesMutexLock(m_devicestatesMutex);
     Plugins::PythonEventsProcessPython(reason, filename, PyString, DeviceID, m_devicestates, m_uservariables, getSunRiseSunSetMinutes("Sunrise"),
         getSunRiseSunSetMinutes("Sunset"));
 
@@ -2648,9 +2674,8 @@ void CEventSystem::EvaluatePython(const std::string &reason, const std::string &
 #endif // ENABLE_PYTHON
 
 
-void CEventSystem::ExportDomoticzDataToLua(lua_State *lua_state, uint64_t deviceID, uint64_t varID)
+void CEventSystem::ExportDomoticzDataToLua(lua_State *lua_state, const uint64_t deviceID, const int64_t varID, const uint64_t SceneGroupID)
 {
-	boost::shared_lock<boost::shared_mutex> devicestatesMutexLock3(m_devicestatesMutex);
 	int index = 1;
 	bool timed_out = false;
 	const char* dev_type;
@@ -2671,6 +2696,7 @@ void CEventSystem::ExportDomoticzDataToLua(lua_State *lua_state, uint64_t device
 	lua_createtable(lua_state, 0, 0);
 
 	// First export all the devices.
+	boost::shared_lock<boost::shared_mutex> devicestatesMutexLock(m_devicestatesMutex);
 	typedef std::map<uint64_t, _tDeviceStatus>::iterator it_type;
 	for (it_type iterator = m_devicestates.begin(); iterator != m_devicestates.end(); ++iterator)
 	{
@@ -2845,7 +2871,7 @@ void CEventSystem::ExportDomoticzDataToLua(lua_State *lua_state, uint64_t device
 		lua_settable(lua_state, -3); // device entry
 		index++;
 	}
-	devicestatesMutexLock3.unlock();
+	devicestatesMutexLock.unlock();
 
 	// Now do the scenes and groups.
 	const char *description = "";
@@ -2894,6 +2920,17 @@ void CEventSystem::ExportDomoticzDataToLua(lua_State *lua_state, uint64_t device
 		lua_pushstring(lua_state, "lastUpdate");
 		lua_pushstring(lua_state, sgitem.lastUpdate.c_str());
 		lua_rawset(lua_state, -3);
+
+		lua_pushstring(lua_state, "changed");
+		if (sgitem.ID == SceneGroupID)
+		{
+			lua_pushboolean(lua_state, true);
+		}
+		else
+		{
+			lua_pushboolean(lua_state, false);
+		}
+		lua_settable(lua_state, -3);
 
 		lua_pushstring(lua_state, "data");
 		lua_createtable(lua_state, 0, 0);
@@ -3001,7 +3038,7 @@ void CEventSystem::ExportDomoticzDataToLua(lua_State *lua_state, uint64_t device
 
 void CEventSystem::ExportDeviceStatesToLua(lua_State *lua_state)
 {
-	boost::shared_lock<boost::shared_mutex> devicestatesMutexLock2(m_devicestatesMutex);
+	boost::shared_lock<boost::shared_mutex> devicestatesMutexLock(m_devicestatesMutex);
 	lua_createtable(lua_state, (int)m_devicestates.size(), 0);
 	typedef std::map<uint64_t, _tDeviceStatus>::iterator it_type;
 	for (it_type iterator = m_devicestates.begin(); iterator != m_devicestates.end(); ++iterator)
@@ -3055,7 +3092,6 @@ void CEventSystem::ExportDeviceStatesToLua(lua_State *lua_state)
 		lua_rawset(lua_state, -3);
 	}
 	lua_setglobal(lua_state, "otherdevices_lastlevel");
-	devicestatesMutexLock2.unlock();
 }
 
 void CEventSystem::EvaluateLua(const std::string &reason, const std::string &filename, const std::string &LuaString, const uint64_t varId)
@@ -3077,6 +3113,7 @@ void CEventSystem::EvaluateLua(const std::string &reason, const std::string &fil
 	//	//_log.Log(LOG_NORM,"EventSystem: Already scheduled this event, skipping");
 	//	return;
 	//}
+
 
 	lua_State *lua_state;
 	lua_state = luaL_newstate();
@@ -3472,9 +3509,25 @@ void CEventSystem::EvaluateLua(const std::string &reason, const std::string &fil
 
 	ExportDeviceStatesToLua(lua_state);
 
+	uint64_t SceneGroupID = 0;
+
+	if (!DeviceID && reason == "device")
+	{
+		boost::shared_lock<boost::shared_mutex> scenesgroupsMutexLock(m_scenesgroupsMutex);
+		typedef std::map<uint64_t, _tScenesGroups>::iterator it_scgr;
+		for (it_scgr iterator = m_scenesgroups.begin(); iterator != m_scenesgroups.end(); ++iterator)
+		{
+			if (iterator->second.scenesgroupName == devname)
+			{
+				SceneGroupID = iterator->second.ID;
+				break;
+			}
+		}
+	}
+
 	if (!m_sql.m_bDisableDzVentsSystem)
 		if (filename == m_dzv_Dir + "dzVents.lua")
-			ExportDomoticzDataToLua(lua_state, DeviceID, varId);
+			ExportDomoticzDataToLua(lua_state, DeviceID, varId, SceneGroupID);
 
 	boost::shared_lock<boost::shared_mutex> uservariablesMutexLock(m_uservariablesMutex);
 	lua_createtable(lua_state, (int)m_uservariables.size(), 0);
@@ -3597,7 +3650,10 @@ void CEventSystem::EvaluateLua(const std::string &reason, const std::string &fil
 			lua_pushstring(lua_state, lua_DirT.str().c_str());
 			lua_rawset(lua_state, -3);
 			lua_pushstring(lua_state, "script_reason");
-			lua_pushstring(lua_state, reason.c_str());
+			if (SceneGroupID && reason == "device")
+				lua_pushstring(lua_state, "scenegroup");
+			else
+				lua_pushstring(lua_state, reason.c_str());
 			lua_rawset(lua_state, -3);
 
 			char szTmp[10];
@@ -3628,6 +3684,9 @@ void CEventSystem::EvaluateLua(const std::string &reason, const std::string &fil
 			lua_pushstring(lua_state, "domoticz_listening_port");
 		//	lua_pushstring(lua_state, "8080");
 			lua_pushstring(lua_state, m_webservers.our_listener_port.c_str());
+			lua_rawset(lua_state, -3);
+			lua_pushstring(lua_state, "domoticz_start_time");
+			lua_pushstring(lua_state, m_szStartTime.c_str());
 			lua_rawset(lua_state, -3);
 			lua_pushstring(lua_state, "elapsedTime");
 			lua_pushnumber(lua_state, (lua_Number)elapsedTime);
@@ -3866,6 +3925,12 @@ bool CEventSystem::processLuaCommand(lua_State *lua_state, const std::string &fi
 		UpdateDevice(luaString);
 		scriptTrue = true;
 	}
+	else if (lCommand == "BackupDatabase")
+	{
+		std::string luaString = lua_tostring(lua_state, -1);
+		BackupDatabase(luaString);
+		scriptTrue = true;
+	}
 	else if (lCommand.find("Variable:") == 0)
 	{
 		std::string variableName = lCommand.substr(9);
@@ -4043,6 +4108,15 @@ void CEventSystem::UpdateDevice(const std::string &DevParams)
 			m_mainworker.SetZWaveThermostatFanMode(idx, atoi(nvalue.c_str()));
 		}
 	}
+}
+
+void CEventSystem::BackupDatabase(const std::string &path)
+{
+	_log.Log(LOG_STATUS, "EventSystem: Starting database backup to %s", path.c_str());
+	if (m_sql.BackupDatabase(path))
+		_log.Log(LOG_STATUS, "EventSystem: Database backup completed...");
+	else
+		_log.Log(LOG_ERROR, "EventSystem: Error writing backup file to %s", path.c_str());
 }
 
 void CEventSystem::OpenURL(const std::string &URL)

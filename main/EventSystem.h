@@ -148,6 +148,7 @@ private:
 	int m_SecStatus;
 	std::string m_lua_Dir;
 	std::string m_dzv_Dir;
+	std::string m_szStartTime;
 
 	//our thread
 	void Do_Work();
@@ -166,12 +167,13 @@ private:
 #endif
 	void EvaluateLua(const std::string &reason, const std::string &filename, const std::string &LuaString, const uint64_t varId);
 	void EvaluateLua(const std::string &reason, const std::string &filename, const std::string &LuaString);
-	void ExportDomoticzDataToLua(lua_State *lua_state, uint64_t deviceID, uint64_t varID);
+	void ExportDomoticzDataToLua(lua_State *lua_state, const uint64_t deviceID, const int64_t varID, const uint64_t SceneGroupID);
 	void EvaluateLua(const std::string &reason, const std::string &filename, const std::string &LuaString, const uint64_t DeviceID, const std::string &devname, const int nValue, const char* sValue, std::string nValueWording, const uint64_t varId);
 	void luaThread(lua_State *lua_state, const std::string &filename);
 	static void luaStop(lua_State *L, lua_Debug *ar);
 	std::string nValueToWording(const uint8_t dType, const uint8_t dSubType, const _eSwitchType switchtype, const int nValue, const std::string &sValue, const std::map<std::string, std::string> & options);
 	static int l_domoticz_print(lua_State* lua_state);
+	void BackupDatabase(const std::string &path);
 	void OpenURL(const std::string &URL);
 	void WriteToLog(const std::string &devNameNoQuotes, const std::string &doWhat);
 	bool ScheduleEvent(int deviceID, std::string Action, bool isScene, const std::string &eventName, int sceneType);

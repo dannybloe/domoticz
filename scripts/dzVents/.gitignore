@@ -6,3 +6,5 @@ generated_scripts/*.lua
 !/runtime/tests/data/README.md
 /runtime/tests/data/__data_global_data.lua
 /runtime/tests/data/__data_script1.lua
+/runtime/tests/data/__data_script_group1.lua
+/runtime/tests/data/__data_script_scene1.lua
