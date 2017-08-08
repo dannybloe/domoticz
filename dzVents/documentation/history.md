@@ -14,6 +14,7 @@
  - Moved dzVents runtime code away from the /path/to/domoticz/scripts/dzVents folder as this scripts folder contains user stuff.
  - Added more trigger examples in the documentation.
  - active setion is now optional. If you don't specify an active = true/false then true is assumed (script is active). Handy for when you use Domoticz' internal script editor as it has its own way of activating and deactivating scripts.
+ - Added dzVents/scripts/modules and dzVents/modules to the Lua package path for custom modules.
 
 [2.2.0]
 
