@@ -2092,6 +2092,7 @@ static inline long long GetIndexFromDevice(std::string devline)
 
 std::string CEventSystem::ProcessVariableArgument(const std::string &Argument)
 {
+	boost::lock_guard<boost::mutex> measurementStatesMutexLock(m_measurementStatesMutex);
 	std::string ret = Argument;
 	long long dindex = GetIndexFromDevice(Argument);
 	if (dindex == -1)
@@ -2363,7 +2364,7 @@ bool CEventSystem::parseBlocklyActions(const std::string &Actions, const std::st
 				if (result.size() > 0)
 				{
 					std::vector<std::string> sd = result[0];
-					std::string updateResult = m_sql.UpdateUserVariable(variableNo, sd[0], sd[1], doWhat, false);
+					std::string updateResult = m_sql.UpdateUserVariable(variableNo, sd[0], sd[1], doWhat, true);
 					if (updateResult != "OK") {
 						_log.Log(LOG_ERROR, "EventSystem: Error updating variable %s: %s", sd[0].c_str(), updateResult.c_str());
 					}
@@ -2372,7 +2373,7 @@ bool CEventSystem::parseBlocklyActions(const std::string &Actions, const std::st
 			else
 			{
 				float DelayTime = afterTimerSeconds;
-				m_sql.AddTaskItem(_tTaskItem::SetVariable(DelayTime, (const uint64_t)atol(variableNo.c_str()), doWhat, false));
+				m_sql.AddTaskItem(_tTaskItem::SetVariable(DelayTime, (const uint64_t)atol(variableNo.c_str()), doWhat, true));
 			}
 			actionsDone = true;
 			continue;
@@ -3876,7 +3877,7 @@ bool CEventSystem::processLuaCommand(lua_State *lua_state, const std::string &fi
 
 			if (afterTimerSeconds < (1./timer_resolution_hz/2))
 			{
-				std::string updateResult = m_sql.UpdateUserVariable(sd[0], variableName, sd[1], variableValue, false);
+				std::string updateResult = m_sql.UpdateUserVariable(sd[0], variableName, sd[1], variableValue, true);
 				if (updateResult != "OK") {
 					_log.Log(LOG_ERROR, "EventSystem: Error updating variable %s: %s", variableName.c_str(), updateResult.c_str());
 				}
@@ -3888,7 +3889,7 @@ bool CEventSystem::processLuaCommand(lua_State *lua_state, const std::string &fi
 				std::stringstream sstr;
 				sstr << sd[0];
 				sstr >> idx;
-				m_sql.AddTaskItem(_tTaskItem::SetVariable(DelayTime, idx, variableValue, false));
+				m_sql.AddTaskItem(_tTaskItem::SetVariable(DelayTime, idx, variableValue, true));
 			}
 			scriptTrue = true;
 		}
@@ -4691,8 +4692,8 @@ namespace http {
 							std::string actions = array[index].get("actions", "").asString();
 
 							if (
-								(actions.find("SendNotification") != std::string::npos) || 
-								(actions.find("SendEmail") != std::string::npos) || 
+								(actions.find("SendNotification") != std::string::npos) ||
+								(actions.find("SendEmail") != std::string::npos) ||
 								(actions.find("SendSMS") != std::string::npos) ||
 								(actions.find("TriggerIFTTT") != std::string::npos)
 								)
