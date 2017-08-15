@@ -2860,17 +2860,17 @@ void CSQLHelper::Do_Work()
 							break;
 						default:
 							//just update internally
-							UpdateValueInt(itt->_HardwareID, itt->_ID.c_str(), itt->_unit, itt->_devType, itt->_subType, itt->_signallevel, itt->_batterylevel, itt->_nValue, itt->_sValue.c_str(), devname, true);
+							UpdateValueInt(itt->_HardwareID, itt->_ID.c_str(), itt->_unit, itt->_devType, itt->_subType, itt->_signallevel, itt->_batterylevel, itt->_nValue, itt->_sValue.c_str(), devname, true, itt->_eventTrigger);
 							break;
 						}
 						break;
 					case pTypeLighting4:
 						//only update internally
-						UpdateValueInt(itt->_HardwareID, itt->_ID.c_str(), itt->_unit, itt->_devType, itt->_subType, itt->_signallevel, itt->_batterylevel, itt->_nValue, itt->_sValue.c_str(), devname, true);
+						UpdateValueInt(itt->_HardwareID, itt->_ID.c_str(), itt->_unit, itt->_devType, itt->_subType, itt->_signallevel, itt->_batterylevel, itt->_nValue, itt->_sValue.c_str(), devname, true, itt->_eventTrigger);
 						break;
 					default:
 						//unknown hardware type, sensor will only be updated internally
-						UpdateValueInt(itt->_HardwareID, itt->_ID.c_str(), itt->_unit, itt->_devType, itt->_subType, itt->_signallevel, itt->_batterylevel, itt->_nValue, itt->_sValue.c_str(), devname, true);
+						UpdateValueInt(itt->_HardwareID, itt->_ID.c_str(), itt->_unit, itt->_devType, itt->_subType, itt->_signallevel, itt->_batterylevel, itt->_nValue, itt->_sValue.c_str(), devname, true, itt->_eventTrigger);
 						break;
 					}
 				}
@@ -2880,7 +2880,7 @@ void CSQLHelper::Do_Work()
 					{
 						//only update internally
 						std::string devname = "";
-						UpdateValueInt(itt->_HardwareID, itt->_ID.c_str(), itt->_unit, itt->_devType, itt->_subType, itt->_signallevel, itt->_batterylevel, itt->_nValue, itt->_sValue.c_str(), devname, true);
+						UpdateValueInt(itt->_HardwareID, itt->_ID.c_str(), itt->_unit, itt->_devType, itt->_subType, itt->_signallevel, itt->_batterylevel, itt->_nValue, itt->_sValue.c_str(), devname, true, itt->_eventTrigger);
 					}
 					else
 						SwitchLightFromTasker(itt->_idx, "Off", 0, -1);
@@ -2970,7 +2970,7 @@ void CSQLHelper::Do_Work()
 
 			else if (itt->_ItemType == TITEM_SWITCHCMD_SCENE)
 			{
-				m_mainworker.SwitchScene(itt->_idx, itt->_command.c_str());
+				m_mainworker.SwitchScene(itt->_idx, itt->_command.c_str(), itt->_eventTrigger);
 			}
 			else if (itt->_ItemType == TITEM_SET_VARIABLE)
 			{
@@ -2983,7 +2983,7 @@ void CSQLHelper::Do_Work()
 					s_str.clear();
 					s_str.str("");
 					s_str << itt->_idx;
-					std::string updateResult = UpdateUserVariable(s_str.str(), sd[0], sd[1], itt->_sValue, (itt->_nValue == 0) ? false : true);
+					std::string updateResult = UpdateUserVariable(s_str.str(), sd[0], sd[1], itt->_sValue, itt->_eventTrigger);
 					if (updateResult != "OK") {
 						_log.Log(LOG_ERROR, "Error updating variable %s: %s", sd[0].c_str(), updateResult.c_str());
 					}
@@ -3231,7 +3231,7 @@ uint64_t CSQLHelper::UpdateValue(const int HardwareID, const char* ID, const uns
 
 uint64_t CSQLHelper::UpdateValue(const int HardwareID, const char* ID, const unsigned char unit, const unsigned char devType, const unsigned char subType, const unsigned char signallevel, const unsigned char batterylevel, const int nValue, const char* sValue, std::string &devname, const bool bUseOnOffAction)
 {
-	uint64_t devRowID=UpdateValueInt(HardwareID, ID, unit, devType, subType, signallevel, batterylevel, nValue, sValue,devname,bUseOnOffAction);
+	uint64_t devRowID=UpdateValueInt(HardwareID, ID, unit, devType, subType, signallevel, batterylevel, nValue, sValue, devname, bUseOnOffAction, true);
 	if (devRowID == -1)
 		return -1;
 
@@ -3450,7 +3450,7 @@ uint64_t CSQLHelper::UpdateValue(const int HardwareID, const char* ID, const uns
 	return devRowID;
 }
 
-uint64_t CSQLHelper::UpdateValueInt(const int HardwareID, const char* ID, const unsigned char unit, const unsigned char devType, const unsigned char subType, const unsigned char signallevel, const unsigned char batterylevel, const int nValue, const char* sValue, std::string &devname, const bool bUseOnOffAction)
+uint64_t CSQLHelper::UpdateValueInt(const int HardwareID, const char* ID, const unsigned char unit, const unsigned char devType, const unsigned char subType, const unsigned char signallevel, const unsigned char batterylevel, const int nValue, const char* sValue, std::string &devname, const bool bUseOnOffAction, const bool bEventTrigger)
 {
 	if (!m_dbase)
 		return -1;
@@ -3824,7 +3824,7 @@ uint64_t CSQLHelper::UpdateValueInt(const int HardwareID, const char* ID, const 
 					if (bAdd2DelayQueue==true)
 					{
 						boost::lock_guard<boost::mutex> l(m_background_task_mutex);
-						_tTaskItem tItem=_tTaskItem::SwitchLight(AddjValue,ulID,HardwareID,ID,unit,devType,subType,switchtype,signallevel,batterylevel,cmd,sValue);
+						_tTaskItem tItem=_tTaskItem::SwitchLight(AddjValue, ulID, HardwareID, ID, unit, devType, subType, switchtype, signallevel, batterylevel, cmd, sValue, bEventTrigger);
 						//Remove all instances with this device from the queue first
 						//otherwise command will be send twice, and first one will be to soon as it is currently counting
 						std::vector<_tTaskItem>::iterator itt=m_background_task_queue.begin();
@@ -3856,7 +3856,7 @@ uint64_t CSQLHelper::UpdateValueInt(const int HardwareID, const char* ID, const 
 
 	if (_log.isTraceEnabled()) _log.Log(LOG_TRACE,"SQLH UpdateValueInt %s HwID:%d  DevID:%s Type:%d  sType:%d nValue:%d sValue:%s ", devname.c_str(),HardwareID, ID, devType, subType, nValue, sValue );
 
-	if (bDeviceUsed)
+	if (bDeviceUsed && bEventTrigger)
 		m_mainworker.m_eventsystem.ProcessDevice(HardwareID, ulID, unit, devType, subType, signallevel, batterylevel, nValue, sValue, devname, 0);
 	return ulID;
 }

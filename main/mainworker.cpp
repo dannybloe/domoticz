@@ -12269,7 +12269,7 @@ bool MainWorker::SwitchScene(const std::string &idx, const std::string &switchcm
 	std::stringstream s_str( idx );
 	s_str >> ID;
 
-	return SwitchScene(ID,switchcmd);
+	return SwitchScene(ID,switchcmd,true);
 }
 
 //returns if a device activates a scene
@@ -12323,7 +12323,7 @@ bool MainWorker::DoesDeviceActiveAScene(const uint64_t DevRowIdx, const int Cmnd
 	return false;
 }
 
-bool MainWorker::SwitchScene(const uint64_t idx, const std::string &switchcmd)
+bool MainWorker::SwitchScene(const uint64_t idx, const std::string &switchcmd, const bool bEventTrigger)
 {
 	//Get Scene details
 	std::vector<std::vector<std::string> > result;
@@ -12397,7 +12397,7 @@ bool MainWorker::SwitchScene(const uint64_t idx, const std::string &switchcmd)
 		std::stringstream ssLastUpdate;
 		ssLastUpdate << (ltime.tm_year + 1900) << "-" << std::setw(2) << std::setfill('0') << (ltime.tm_mon + 1) << "-" << std::setw(2) << std::setfill('0') << ltime.tm_mday
 		<< " " << std::setw(2) << std::setfill('0') << ltime.tm_hour << ":" << std::setw(2) << std::setfill('0') << ltime.tm_min << ":" << std::setw(2) << std::setfill('0') << ltime.tm_sec;
-		m_eventsystem.UpdateScenesGroups(idx, nValue, ssLastUpdate.str());
+		m_eventsystem.UpdateScenesGroups(idx, nValue, ssLastUpdate.str(), bEventTrigger);
 	}
 
 	//now switch all attached devices, and only the onces that do not trigger a scene

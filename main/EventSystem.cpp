@@ -1270,7 +1270,7 @@ void CEventSystem::UpdateLastUpdate(const uint64_t ulDevID, const std::string &l
 	}
 }
 
-void CEventSystem::UpdateScenesGroups(const uint64_t ulDevID, const int nValue, const std::string &lastUpdate)
+void CEventSystem::UpdateScenesGroups(const uint64_t ulDevID, const int nValue, const std::string &lastUpdate, const bool bEventTrigger)
 {
 	if (!m_bEnabled)
 		return;
@@ -2534,44 +2534,73 @@ void CEventSystem::ParseActionString( const std::string &oAction_, _tActionParse
 
 	std::vector<std::string> oSplitResults;
 	StringSplit( oAction_, " ", oSplitResults );
-	for( std::vector<std::string>::const_iterator oIterator = oSplitResults.begin(); oIterator != oSplitResults.end(); ++oIterator ) {
+	for( std::vector<std::string>::const_iterator oIterator = oSplitResults.begin(); oIterator != oSplitResults.end(); ++oIterator )
+	{
 		std::string sToken = *oIterator;
-		if ( sToken == "FOR" ) {
+		if ( sToken == "FOR" )
+		{
 			iLastTokenType = 1;
-		} else if ( sToken == "AFTER" ) {
+		}
+		else if ( sToken == "AFTER" )
+		{
 			iLastTokenType = 2;
-		} else if ( sToken == "RANDOM" ) {
+		}
+		else if ( sToken == "RANDOM" )
+		{
 			iLastTokenType = 3;
-		} else if ( sToken == "REPEAT" ) {
+		}
+		else if ( sToken == "REPEAT" )
+		{
 			iLastTokenType = 4;
-		} else if ( sToken == "INTERVAL" ) {
+		}
+		else if ( sToken == "INTERVAL" )
+		{
 			iLastTokenType = 5;
-		} else if ( sToken == "TURN" ) {
+		}
+		else if ( sToken == "TURN" )
+		{
 			iLastTokenType = 0;
-		} else if ( sToken.find( "SECOND" ) != std::string::npos ) {
-			switch( iLastTokenType ) {
+		}
+		else if (sToken == "NOTRIGGER")
+		{
+			iLastTokenType = 6;
+		}
+		else if ( sToken.find( "SECOND" ) != std::string::npos )
+		{
+			switch( iLastTokenType )
+			{
 				case 1: oResults_.fForSec /= 60.; break;
 				case 3: oResults_.fRandomSec /= 60.; break;
 			}
 			iLastTokenType = 0;
-		} else if ( sToken.find( "MINUTE" ) != std::string::npos ) {
-			switch( iLastTokenType ) {
+		}
+		else if ( sToken.find( "MINUTE" ) != std::string::npos )
+		{
+			switch( iLastTokenType )
+			{
 				case 2: oResults_.fAfterSec *= 60.; break;
 				case 5: oResults_.fRepeatSec *= 60.; break;
 			}
 			iLastTokenType = 0;
-		} else if ( sToken.find( "HOUR" ) != std::string::npos ) {
-			switch( iLastTokenType ) {
+		}
+		else if ( sToken.find( "HOUR" ) != std::string::npos )
+		{
+			switch( iLastTokenType )
+			{
 				case 1: oResults_.fForSec *= 60.; break;
 				case 2: oResults_.fAfterSec *= 3600.; break;
 				case 3: oResults_.fRandomSec *= 60.; break;
 				case 5: oResults_.fRepeatSec *= 3600.; break;
 			}
 			iLastTokenType = 0;
-		} else {
-			switch( iLastTokenType ) {
+		}
+		else
+		{
+			switch( iLastTokenType )
+			{
 				case 0:
-					if ( oResults_.sCommand.length() > 0 ) {
+					if ( oResults_.sCommand.length() > 0 )
+					{
 						oResults_.sCommand.append( " " );
 					}
 					oResults_.sCommand.append( sToken );
@@ -2591,6 +2620,8 @@ void CEventSystem::ParseActionString( const std::string &oAction_, _tActionParse
 				case 5:
 					oResults_.fRepeatSec = 1.f * static_cast<float>(atof(sToken.c_str()));
 					break;
+				case 6:
+					oResults_.bNoTrigger = atoi(sToken.c_str()) ? true : false;
 			}
 		}
 	}
@@ -3862,8 +3893,20 @@ bool CEventSystem::processLuaCommand(lua_State *lua_state, const std::string &fi
 
 		float afterTimerSeconds = 0;
 		size_t aFind = variableValue.find(" AFTER ");
-		if ((aFind > 0) && (aFind != std::string::npos)) {
-			std::string delayString = variableValue.substr(aFind + 7);
+		bool noTrigger = false;
+		if ((aFind > 0) && (aFind != std::string::npos))
+		{
+			std::string delayString;
+			size_t bFind = variableValue.find(" NOTRIGGER");
+			if (bFind != std::string::npos)
+			{
+				delayString = variableValue.substr(aFind + 7, bFind - aFind - 7);
+//				_log.Log(LOG_STATUS, "EventSystem: delayString = %s", delayString.c_str());
+				noTrigger = true;
+			}
+			else
+				delayString = variableValue.substr(aFind + 7);
+
 			std::string newAction = variableValue.substr(0, aFind);
 			afterTimerSeconds = static_cast<float>(atof(delayString.c_str()));
 			variableValue = newAction;
@@ -4133,7 +4176,7 @@ bool CEventSystem::ScheduleEvent(int deviceID, std::string Action, bool isScene,
 	unsigned char level = 0;
 	devicestatesMutexLock.unlock();
 
-	struct _tActionParseResults oParseResults = { "", 0, 0, 0, 1, 0 };
+	struct _tActionParseResults oParseResults = { "", 0, 0, 0, 1, 0, false };
 	ParseActionString( Action, oParseResults );
 
 	if ( oParseResults.sCommand.substr( 0, 9 ) == "Set Level" ) {
