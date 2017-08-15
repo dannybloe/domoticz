@@ -2622,6 +2622,7 @@ void CEventSystem::ParseActionString( const std::string &oAction_, _tActionParse
 					break;
 				case 6:
 					oResults_.bNoTrigger = atoi(sToken.c_str()) ? true : false;
+					break;
 			}
 		}
 	}
