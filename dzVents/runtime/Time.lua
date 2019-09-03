@@ -491,9 +491,13 @@ local function Time(sDate, isUTC, _testMS)
 			return tonumber(day), tonumber(month)
 		end
 
+		local _ = require('lodash');
+
 		--now get the ranges
 		for fromSet, toSet in string.gmatch(dates, '([0-9%/]*)-([0-9%/]*)') do
 			local fromDay, toDay, fromMonth, toMonth
+
+			_.print(1, fromSet, 2, toSet)
 
 			if (isEmpty(fromSet) and not isEmpty(toSet)) then
 				toDay, toMonth = getParts(toSet)
@@ -510,11 +514,18 @@ local function Time(sDate, isUTC, _testMS)
 				toDay, toMonth = getParts(toSet)
 				fromDay, fromMonth = getParts(fromSet)
 
+				--_.print(fromDay, fromMonth)
+				--_.print(toDay, toMonth)
+				--_.print(self.day, self.month)
+				--_.print(1, self.month > fromMonth and self.month < toMonth)
+				--_.print(2, fromMonth == toMonth and self.month == fromMonth and self.day >= fromDay and self.day <= toDay )
+				--_.print(3, self.month == fromMonth and self.day >= fromDay)
+				--_.print(4, self.month == toMonth and self.day <= toDay)
 				if (
 					( self.month > fromMonth and self.month < toMonth ) or
 					( fromMonth == toMonth and self.month == fromMonth and self.day >= fromDay and self.day <= toDay ) or
-					( self.month == fromMonth and self.day >= fromDay ) or
-					( self.month == toMonth and self.day <= toDay )
+					( self.month == fromMonth and toMonth < fromMonth and self.day >= fromDay ) or
+					( self.month == toMonth and toMonth < fromMonth and  self.day <= toDay )
 				) then
 					return true
 				end

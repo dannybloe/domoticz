@@ -24,3 +24,9 @@ support for PUT and DELETE in http requests
 adjust docs that wildcards can be used in other areas than on-devices.
 
 fix couple of code-block formats in doc (section historical data)
+http://www.domoticz.com/forum/viewtopic.php?p=185059&sid=315a65ba30e50937d34634ed79bce995#p185059
+
+dumpTable on the domoticz object
+
+http://www.domoticz.com/forum/viewtopic.php?p=193645#p193645
+http://www.domoticz.com/forum/viewtopic.php?f=71&t=25403&p=195382#p195382

@@ -1248,6 +1248,14 @@ describe('Time', function()
 
 			end)
 
+			it('#tagon date 20/10-31/10', function()
+				--local t = Time('2018-10-22 16:00:00') -- on monday, wk43
+				--assert.is_true(t.matchesRule('on 20/10-31/10'))
+
+				local t = Time('2018-10-19 16:00:00') -- on monday, wk43
+				assert.is_false(t.matchesRule('on 20/10-31/10'))
+			end)
+
 			it('at 08:00-15:00 on 21/4-30/4', function()
 				local t = Time('2017-04-21 08:04:00')
 				assert.is_true(t.matchesRule('at 08:00-15:00 on 21/4-30/4'))
